@@ -11,21 +11,20 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Serve arquivos estáticos
-app.use(express.static(__dirname));
+// Serve arquivos estáticos (HTML, CSS, JS)
+app.use(express.static(path.join(__dirname, '.')));
 
-// Rota principal
+// Rota principal para carregar o seu checkout
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// CONFIGURAÇÃO PUSHINPAY
-// Testando a URL sem o prefixo /api duplicado. 
-// De acordo com o erro, o sistema deles não encontrou a rota "api/pix".
-// Vamos tentar a URL direta conforme o padrão de muitas APIs brasileiras.
-const PUSHINPAY_API_KEY = 'Q2xpZW50X0lkX2QyMmFkZmQwLTQxMzQtNGUzNC04NmY1LTRjMjZjOWRkNjg2NDpDbGllbnRfU2VjcmV0X0Z5SkVvaXVWWDdlKzBXcExCMDNaTStxNUs0Z0JLeG9GN2ZkK1IxUEtUbmM9';
+// CONFIGURAÇÃO PUSHINPAY (Substituindo Woovi)
+// Como solicitado, a chave está diretamente no código para evitar configuração no painel do Render
+const PUSHINPAY_API_URL = 'https://api.pushinpay.com.br/api';
+const PUSHINPAY_API_KEY = '66692|76q48PnH6a7BtX4oxARcWgCWu3QSl149j7qUIc0xf271f2ab'; // Chave mantida do seu .env original
 
-// --- Lógica de Rotação de CPFs (Mantida) ---
+// --- Lógica de Rotação de CPFs (Mantida do original) ---
 const RAW_CPFS = `
 27446738898
 45528427819
@@ -301,10 +300,10 @@ function getNextCpf() {
     return cpf;
 }
 
-// Rota para gerar o Pix
+// Rota para gerar o Pix (chamada pelo seu index.html )
 app.post('/api/pix', async (req, res) => {
     try {
-        const { amount } = req.body;
+        const { payer_name, payer_cpf, payer_phone, amount } = req.body;
 
         if (!amount) {
             return res.status(400).json({ success: false, message: 'Campo obrigatório (amount) ausente.' });
@@ -312,17 +311,20 @@ app.post('/api/pix', async (req, res) => {
 
         const valueInCents = Math.round(parseFloat(amount.replace(',', '.')) * 100);
         
+        // PushinPay requer valor mínimo de 50 centavos
         if (valueInCents < 50) {
             return res.status(400).json({ success: false, message: 'O valor mínimo para PIX é de 50 centavos.' });
         }
 
+        // Obtém o próximo CPF da lista para rotação (opcional para PushinPay, mas mantido conforme seu código original)
+        const cpfParaUsar = getNextCpf();
+
         const payload = {
-            value: valueInCents
+            value: valueInCents,
+            // Opcional: PushinPay pode receber webhook_url aqui se desejar
         };
 
-        // ALTERAÇÃO: Testando URL direta sem o prefixo /api, pois o erro sugere que a rota "api/pix" não existe.
-        // Muitas vezes a documentação diz /api mas o host já aponta para o ambiente de API.
-        const response = await axios.post('https://api.pushinpay.com.br/api/pix', payload, {
+        const response = await axios.post(`${PUSHINPAY_API_URL}/pix`, payload, {
             headers: {
                 'Authorization': `Bearer ${PUSHINPAY_API_KEY}`,
                 'Content-Type': 'application/json',
@@ -334,14 +336,15 @@ app.post('/api/pix', async (req, res) => {
             return res.json({
                 success: true,
                 pixCode: response.data.qr_code,
-                correlationID: response.data.id
+                correlationID: response.data.id,
+                cpfUsed: cpfParaUsar // Apenas para seu controle interno se necessário
             });
         } else {
             throw new Error('Resposta inválida da PushinPay');
         }
 
     } catch (error) {
-        console.error('Erro ao gerar PIX:', error.response ? JSON.stringify(error.response.data) : error.message);
+        console.error('Erro ao gerar PIX:', error.response ? error.response.data : error.message);
         res.status(500).json({ 
             success: false, 
             message: 'Erro ao processar o pagamento Pix.',
