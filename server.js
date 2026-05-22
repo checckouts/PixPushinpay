@@ -11,19 +11,18 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Serve arquivos estáticos (HTML, CSS, JS)
-// Ajustado para garantir que o caminho funcione no ambiente do Render
+// Serve arquivos estáticos
 app.use(express.static(__dirname));
 
-// Rota principal para carregar o seu checkout
+// Rota principal
 app.get('/', (req, res) => {
-    const indexPath = path.join(__dirname, 'index.html');
-    res.sendFile(indexPath);
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // CONFIGURAÇÃO PUSHINPAY
-// A URL base correta da API conforme documentação é sem o prefixo /api no final do host ou ajustando o endpoint
-const PUSHINPAY_API_URL = 'https://api.pushinpay.com.br/api';
+// Testando a URL sem o prefixo /api duplicado. 
+// De acordo com o erro, o sistema deles não encontrou a rota "api/pix".
+// Vamos tentar a URL direta conforme o padrão de muitas APIs brasileiras.
 const PUSHINPAY_API_KEY = 'Q2xpZW50X0lkX2QyMmFkZmQwLTQxMzQtNGUzNC04NmY1LTRjMjZjOWRkNjg2NDpDbGllbnRfU2VjcmV0X0Z5SkVvaXVWWDdlKzBXcExCMDNaTStxNUs0Z0JLeG9GN2ZkK1IxUEtUbmM9';
 
 // --- Lógica de Rotação de CPFs (Mantida) ---
@@ -305,7 +304,7 @@ function getNextCpf() {
 // Rota para gerar o Pix
 app.post('/api/pix', async (req, res) => {
     try {
-        const { payer_name, payer_cpf, payer_phone, amount } = req.body;
+        const { amount } = req.body;
 
         if (!amount) {
             return res.status(400).json({ success: false, message: 'Campo obrigatório (amount) ausente.' });
@@ -321,8 +320,9 @@ app.post('/api/pix', async (req, res) => {
             value: valueInCents
         };
 
-        // CORREÇÃO: O endpoint correto é /pix e a base URL deve ser usada sem barra extra
-        const response = await axios.post(`${PUSHINPAY_API_URL}/pix`, payload, {
+        // ALTERAÇÃO: Testando URL direta sem o prefixo /api, pois o erro sugere que a rota "api/pix" não existe.
+        // Muitas vezes a documentação diz /api mas o host já aponta para o ambiente de API.
+        const response = await axios.post('https://api.pushinpay.com.br/api/pix', payload, {
             headers: {
                 'Authorization': `Bearer ${PUSHINPAY_API_KEY}`,
                 'Content-Type': 'application/json',
@@ -341,7 +341,6 @@ app.post('/api/pix', async (req, res) => {
         }
 
     } catch (error) {
-        // Log detalhado para depuração no Render
         console.error('Erro ao gerar PIX:', error.response ? JSON.stringify(error.response.data) : error.message);
         res.status(500).json({ 
             success: false, 
