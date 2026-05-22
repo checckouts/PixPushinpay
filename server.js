@@ -1,39 +1,53 @@
 const express = require('express');
 const axios = require('axios');
+const dotenv = require('dotenv');
 const cors = require('cors');
+const crypto = require('crypto');
 const path = require('path');
-require('dotenv').config();
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Servir arquivos estáticos do frontend
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve arquivos estáticos (HTML, CSS, JS)
+app.use(express.static(path.join(__dirname, '.')));
 
-const PUSHINPAY_API_URL = 'https://api.pushinpay.com.br/api/pix/cash-in';
-const PUSHINPAY_TOKEN = process.env.PUSHINPAY_TOKEN;
+// Rota principal para carregar o seu checkout
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
+const PUSHINPAY_API_URL = 'https://api.pushinpay.com.br/api';
+const PUSHINPAY_API_KEY = process.env.PUSHINPAY_API_KEY;
+
+// Rota para gerar o Pix (chamada pelo seu index.html )
 app.post('/api/pix', async (req, res) => {
     try {
-        const { amount, payer_name, payer_cpf, payer_phone } = req.body;
+        const { payer_name, payer_cpf, payer_phone, amount } = req.body;
 
-        // Validar campos básicos
-        if (!amount || !payer_name || !payer_cpf) {
-            return res.status(400).json({ success: false, message: 'Campos obrigatórios ausentes.' });
+        if (!amount) {
+            return res.status(400).json({ success: false, message: 'Campo obrigatório (amount) ausente.' });
         }
 
-        // O valor na documentação deve ser em centavos
-        const valueInCents = Math.round(parseFloat(amount) * 100);
+        const valueInCents = Math.round(parseFloat(amount.replace(',', '.')) * 100);
+        
+        // PushinPay requires value to be at least 50 cents
+        if (valueInCents < 50) {
+            return res.status(400).json({ success: false, message: 'O valor mínimo para PIX é de 50 centavos.' });
+        }
 
-        const response = await axios.post(PUSHINPAY_API_URL, {
+        const payload = {
             value: valueInCents,
-            // Opcional: webhook_url: process.env.WEBHOOK_URL
-        }, {
+            // webhook_url: 'SUA_URL_DE_WEBHOOK_AQUI' // Opcional: Adicione se tiver um webhook
+        };
+
+        const response = await axios.post(`${PUSHINPAY_API_URL}/pix`, payload, {
             headers: {
-                'Authorization': `Bearer ${PUSHINPAY_TOKEN}`,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${PUSHINPAY_API_KEY}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             }
         });
 
@@ -41,19 +55,18 @@ app.post('/api/pix', async (req, res) => {
             return res.json({
                 success: true,
                 pixCode: response.data.qr_code,
-                qrCodeBase64: response.data.qr_code_base64,
-                paymentId: response.data.id
+                correlationID: response.data.id // Usando o ID da PushinPay como correlationID
             });
         } else {
-            throw new Error('Resposta inválida da API PushinPay');
+            throw new Error('Resposta inválida da PushinPay');
         }
 
     } catch (error) {
-        console.error('Erro ao criar PIX:', error.response ? error.response.data : error.message);
+        console.error('Erro ao gerar PIX:', error.response ? error.response.data : error.message);
         res.status(500).json({ 
             success: false, 
-            message: 'Erro ao processar pagamento PIX.',
-            details: error.response ? error.response.data : error.message
+            message: 'Erro ao processar o pagamento Pix.',
+            error: error.response ? error.response.data : error.message
         });
     }
 });
