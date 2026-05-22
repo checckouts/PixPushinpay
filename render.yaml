@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: checkout-pushinpay-pix
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PUSHINPAY_TOKEN
+        sync: false # Must be set manually in Render dashboard for security
+      - key: NODE_ENV
+        value: production
