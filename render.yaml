@@ -6,7 +6,5 @@ services:
     buildCommand: npm install
     startCommand: node server.js
     envVars:
-      - key: PUSHINPAY_API_KEY
-        sync: false # O usuário deve adicionar manualmente no painel ou via .env se suportado
       - key: PORT
         value: 3000
