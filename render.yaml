@@ -8,3 +8,5 @@ services:
     envVars:
       - key: PORT
         value: 3000
+      - key: PUSHINPAY_API_KEY
+        sync: false # Recomenda-se configurar isso manualmente no painel do Render por segurança
