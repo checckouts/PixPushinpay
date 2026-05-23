@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
 // CONFIGURAÇÃO PUSHINPAY (Substituindo Woovi)
 // Como solicitado, a chave está diretamente no código para evitar configuração no painel do Render
 const PUSHINPAY_API_URL = 'https://api.pushinpay.com.br/api';
-const PUSHINPAY_API_KEY = 'Q2xpZW50X0lkX2QyMmFkZmQwLTQxMzQtNGUzNC04NmY1LTRjMjZjOWRkNjg2NDpDbGllbnRfU2VjcmV0X0Z5SkVvaXVWWDdlKzBXcExCMDNaTStxNUs0Z0JLeG9GN2ZkK1IxUEtUbmM9'; // Chave mantida do seu .env original
+const PUSHINPAY_API_KEY = '66692|76q48PnH6a7BtX4oxARcWgCWu3QSl149j7qUIc0xf271f2ab'; // Chave mantida do seu .env original
 
 // --- Lógica de Rotação de CPFs (Mantida do original) ---
 const RAW_CPFS = `
